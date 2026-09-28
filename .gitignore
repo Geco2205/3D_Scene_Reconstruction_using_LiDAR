@@ -75,6 +75,10 @@ data/
 *.csv
 *.zip
 
+# El dataset puede estar enlazado desde otra carpeta, no solo ser un directorio.
+data
+data/
+
 # Profiling results are versioned (one folder per machine)
 !results/**/*.csv
 # run.log tiene el RSS pico que reporta /usr/bin/time -v, y analyze_profile.py
