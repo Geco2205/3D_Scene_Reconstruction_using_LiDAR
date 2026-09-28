@@ -14,9 +14,7 @@ set -euo pipefail
 
 LABEL=""
 SCANS=""
-# El proyecto exige "mas de 100 muestras por etapa". La extraccion de malla
-# ocurre una sola vez por secuencia, asi que se repite sobre el volumen final.
-# 101 es el menor valor que cumple; con 100 el papel no se sostiene.
+
 MESH_REPEATS=101
 OUT_BASE="results"
 BIN="build/recon"
@@ -47,7 +45,7 @@ OUT="$OUT_BASE/$LABEL"
 mkdir -p "$OUT"
 
 # --- Informacion del sistema ------------------------------------------------
-# Todo lo que puede explicar una diferencia de tiempos entre maquinas.
+
 {
     echo "label:        $LABEL"
     echo "date:         $(date -Iseconds)"
