@@ -220,6 +220,7 @@ The shared conversation links are attached as evidence.
 
 Gerson: https://claude.ai/share/be045057-e15d-462e-9e98-40855a3e21fa
 
+Nicole: https://chatgpt.com/share/6ab9b72b-0e5c-83e8-983b-1d71080f1d52
 ## References
 
 - I. Vizzo, T. Guadagnino, B. Mersch, L. Wiesmann, J. Behley, and C. Stachniss,
