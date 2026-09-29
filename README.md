@@ -292,14 +292,29 @@ on the same machine (from the `Ciclo de scans` line of
 
 | Variant | PC1 (i3-1115G4) | PC2 (i5-1135G7) | Kria KV260 |
 |---|---:|---:|---:|
-| base | 11.75 (1.00×) | 19.68 (1.00×) | |
-| prefetch | 11.81 (1.00×) | 19.70 (1.00×) | |
-| full | 14.07 (1.20×) | 29.17 (1.48×) | |
-| native | 12.09 (1.03×) | 20.33 (1.03×) | |
-| lto | 11.56 (0.98×) | 19.67 (1.00×) | |
-| soa | 12.12 (1.03×) | 19.37 (0.98×) | |
-| all | 17.93 (1.53×) | 29.06 (1.48×) | |
-| noneon (ARM only) | — | — | |
+| base | 11.75 (1.00×) | 19.68 (1.00×) | 1.72 (1.00×) |
+| prefetch | 11.81 (1.00×) | 19.70 (1.00×) | 1.75 (1.01×)|
+| full | 14.07 (1.20×) | 29.17 (1.48×) | 2.51 (1.46×)|
+| native | 12.09 (1.03×) | 20.33 (1.03×) | 1.73 (1.00×)|
+| lto | 11.56 (0.98×) | 19.67 (1.00×) | 1.74 (1.01×)|
+| soa | 12.12 (1.03×) | 19.37 (0.98×) | 1.75 (1.02×)|
+| all | 17.93 (1.53×) | 29.06 (1.48×) | 2.16 (1.25×)|
+| noneon (ARM only) | — | — | 1.73 (1.00×)|
+
+> **Kria baseline note.** The first `base` run showed anomalous file-I/O
+> behavior in the `read` stage. The variant was repeated under the same
+> configuration, obtaining 1.72 scans/s. This rerun is used as the reference
+> for the Kria optimization speedups reported above.
+
+The earlier baseline profiling and the optimization matrix were collected in
+different revisions of the prototype. Therefore, the optimization speedups
+reported here are computed against the `base` variant from the same optimization
+experiment.
+
+On the Kria KV260, the `full` task-parallel pipeline increased throughput
+from 1.72 to 2.51 scans/s (**1.46×**). The combined `all` variant reached
+2.16 scans/s (**1.25×**), showing that enabling every optimization together
+did not outperform the task-parallel pipeline by itself on this platform.
 
 
 
