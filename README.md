@@ -125,6 +125,121 @@ field does not always have 9 digits.
   `scan, points_in, points_kept, read_ms, filter_ms, convert_ms, register_ms, integrate_ms`.
 
 
+## Optimizations
+
+The optimizations were chosen and applied following the course material,
+mainly Chapter 2 (*Sistemas multiprocesador y su programación*). The chapter
+gave both the method (measure the baseline, find where the time goes, optimize,
+measure again) and the techniques: task parallelism with producer-consumer
+queues and ping-pong buffers, compiler options (`-march=native`, LTO), and data
+layout as a structure of arrays aligned to the cache line.
+
+Each optimization can be switched on or off independently, so its effect is
+always measured against the same baseline. With the default build and
+`--pipeline off`, the program is the baseline.
+
+| Switch | Where | Default | Effect |
+|---|---|---|---|
+| `RECON_OPT_NATIVE` | CMake | `OFF` | `-march=native` (x86) / `-mcpu=native` (ARM), also applied to KISS-ICP and VDBFusion |
+| `RECON_OPT_LTO` | CMake | `OFF` | Link-Time Optimization (`-flto`) |
+| `RECON_OPT_SOA_ALIGNED` | CMake | `OFF` | Point arrays aligned to 64 bytes and branch-free compaction in the reader and the filter |
+| `RECON_OPT_NEON` | CMake | `ON` | NEON intrinsics in the range filter (ARM only) |
+| `--pipeline` | runtime | `off` | `prefetch` or `full` task parallelism, described below |
+
+### How it is measured
+
+`tools/run_optimizations.sh` builds every variant, runs each one on the 300-scan
+sample through `tools/run_profile.sh` and writes the comparison table to
+`results/opt-<label>/analysis/summary.md`:
+
+```bash
+tools/run_optimizations.sh --label pc-<name> --scans data/ncd_sample/scans --icp-voxel 1.0
+```
+
+Each variant changes one thing with respect to `base`, except `all`, which
+combines everything. Laptops must stay plugged in, with no other heavy programs
+open, because on battery the CPU lowers its frequency and the variants stop
+being comparable. With `--pipeline` the stages overlap, so the sum of the stage
+times is no longer the time per scan: throughput is computed from the measured
+period between finished scans (`done_ms` column), and the speedup is taken
+against `base` on the same machine.
+
+### Where the time goes
+
+In the baseline of the three machines measured so far, registration (KISS-ICP)
+and TSDF integration (VDBFusion) take between 96 % and 98 % of the time per scan,
+while reading, filtering and converting the points take less than 2 % (per-stage
+times in [Expected results](#expected-results)):
+
+| Machine | Register + integrate | Read + filter + convert |
+|---|---:|---:|
+| PC1 (i3-1115G4) | 97.1 % | 1.3 % |
+| PC2 (i5-1135G7) | 96.3 % | 1.7 % |
+| Kria KV260 (Cortex-A53) | 97.8 % | 1.4 % |
+
+By Amdahl's law, speeding up only the reader and the filter can improve the
+whole scan by less than 2 %. The optimizations that can matter are the ones
+that reach the libraries or that run the two heavy stages at the same time.
+
+### Applied
+
+**Task parallelism (`--pipeline`).** Load, register and integrate are organized as a producer-consumer pipeline, each stage in its own thread, connected by bounded FIFO queues of capacity 2, following a scheme similar to the ping-pong buffers of Chapter 2. The scans are registered and integrated in the same order as in the sequential run; on PC2 the mesh was verified to have the same number of vertices and triangles as the baseline in both pipeline modes. `prefetch` only hides the load stage, which is less than 2 % of the time, and gives 1.00×. `full` also overlaps registration of scan *k+1* with integration of scan *k* and gives **1.48×** on PC2 (period 50.8 → 34.3 ms). Integration runs on a single core (CPU/wall of 1.00 on the three machines), and with `full` the period (34.27 ms) is almost equal to the integration time (34.18 ms), so integration is now the bottleneck of the pipeline.
+
+**`-march=native` / `-mcpu=native`.** It lets the compiler use the CPU's extensions (AVX2/FMA, Cortex-A tuning), also in KISS-ICP and VDBFusion. It gives **1.03×** on PC2. The limited gain is consistent with OpenVDB and TBB being precompiled dependencies that these flags do not reach, although this test does not attribute the difference to that cause alone. The binary is not portable, and the mesh differs from the baseline by 3 triangles out of 1 476 686, attributable to changes in floating-point code generation; FMA was not isolated as the only cause.
+
+**LTO.** It allows inlining across files and across the libraries built from source. No measurable improvement was observed (**1.00×**).
+
+**Aligned SoA and branch-free compaction.** The point arrays are aligned to 64 bytes (one cache line) and written by index without branches. `read` goes from 0.54 to 0.46 ms and `filter` from 0.18 to 0.09 ms, but the overall result is **0.98×**, so no improvement of the total time was observed, as Amdahl's law predicts for stages that take less than 2 % of the time.
+
+**NEON in the range filter.** It was already in the prototype; the new switch only turns it off (`noneon`) so its effect can be measured on the Kria or the Jetson.
+
+### Not applied
+
+Thread affinity was not applied because the profiling did not show evidence that thread migrations were a bottleneck, and part of the parallelism is managed internally by external libraries (TBB in KISS-ICP). NUMA-aware allocation does not apply because every target machine has a single socket.
+
+`-ffast-math` and `-Ofast` were discarded because, as the course notes warn, they can change numerical results and the handling of special cases such as NaN and infinity, which the reader relies on to drop invalid points. PGO was not applied because of the extra cost of generating a representative profile and rebuilding, prioritizing more direct and reproducible optimizations for this prototype.
+
+KISS-ICP and VDBFusion were not modified with manual intrinsics because the profiling identifies hotspots at the stage level but does not yet show which internal loops would justify manual SIMD, and the course material recommends trying autovectorization, checking the compiler reports and measuring before resorting to intrinsics; those stages are left for the GPU and FPGA prototypes. The SoA layout was not extended past the filter because both libraries take `Eigen::Vector3d` arrays in their API, and mesh extraction was not parallelized because it runs once per sequence and does not affect throughput per scan.
+
+## Expected results
+
+### Without optimizations (baseline)
+
+Mean time per stage, in ms per scan, over the 300-scan sample with the default
+build and `--pipeline off`:
+
+| Stage | PC1 (i3-1115G4) | PC2 (i5-1135G7) | Kria KV260 (Cortex-A53) |
+|---|---:|---:|---:|
+| read | 0.72 | 0.54 | 4.99 |
+| filter | 0.26 | 0.18 | 2.16 |
+| convert | 0.16 | 0.14 | 0.84 |
+| register | 45.67 | 21.32 | 305.09 |
+| transform | 1.34 | 0.99 | 4.35 |
+| integrate | 38.50 | 27.57 | 249.27 |
+| **Total per scan** | **86.65** | **50.74** | **566.71** |
+
+Sources: `results/pc1-nicole/`, `results/opt-pc2-keilin/base/` and
+`results/kria-gonzalo/`.
+
+### With optimizations
+
+Throughput in scans/s over the 300-scan sample, with the speedup against `base`
+on the same machine (from the `Ciclo de scans` line of
+`results/opt-<label>/<variant>/run.log`):
+
+| Variant | PC1 (i3-1115G4) | PC2 (i5-1135G7) | Kria KV260 |
+|---|---:|---:|---:|
+| base | | 19.68 (1.00×) | |
+| prefetch | | 19.70 (1.00×) | |
+| full | | 29.17 (1.48×) | |
+| native | | 20.33 (1.03×) | |
+| lto | | 19.67 (1.00×) | |
+| soa | | 19.37 (0.98×) | |
+| all | | 29.06 (1.48×) | |
+| noneon (ARM only) | — | — | |
+
+
+
 ## Viewing the mesh
 
 We use [MeshLab](https://www.meshlab.net/) to inspect the reconstruction.
@@ -155,7 +270,6 @@ QT_QPA_PLATFORM=xcb meshlab sample.ply
 ```
 
 
-## Expected results
 
 
 
@@ -171,6 +285,10 @@ The shared conversation links are attached as evidence.
 Gerson: https://claude.ai/share/be045057-e15d-462e-9e98-40855a3e21fa
 
 Nicole: https://chatgpt.com/share/6ab9b72b-0e5c-83e8-983b-1d71080f1d52
+
+Keilin: https://chatgpt.com/share/6abbee3d-ba9c-83e8-bdcb-177f0710a5cb
+
+
 ## References
 
 - I. Vizzo, T. Guadagnino, B. Mersch, L. Wiesmann, J. Behley, and C. Stachniss,
