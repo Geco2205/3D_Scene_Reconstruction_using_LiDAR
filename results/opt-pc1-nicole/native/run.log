@@ -1,0 +1,85 @@
+Scans encontrados : 300  (se procesan 300)
+Voxel TSDF / ICP  : 0.1 m / 1 m
+Rango             : [1, 60] m
+Filtro            : escalar
+Compilador        : 13.3.0
+Optimizaciones    : NATIVE=1 LTO=0 SOA_ALIGNED=0
+Pipeline          : off
+
+  [   0]   65536 ->   57269 pts      70.0 ms       62 MiB
+  [  10]   65536 ->   57244 pts     108.6 ms       89 MiB
+  [  20]   65536 ->   56950 pts      78.7 ms       92 MiB
+  [  30]   65536 ->   56945 pts      90.1 ms       95 MiB
+  [  40]   65536 ->   56454 pts      86.4 ms       98 MiB
+  [  50]   65536 ->   56687 pts     107.5 ms       99 MiB
+  [  60]   65536 ->   56751 pts     107.4 ms      101 MiB
+  [  70]   65536 ->   56419 pts      93.6 ms      103 MiB
+  [  80]   65536 ->   56429 pts      97.2 ms      105 MiB
+  [  90]   65536 ->   55948 pts     129.5 ms      106 MiB
+  [ 100]   65536 ->   56222 pts     118.3 ms      107 MiB
+  [ 110]   65536 ->   56157 pts     104.4 ms      109 MiB
+  [ 120]   65536 ->   55769 pts     110.4 ms      109 MiB
+  [ 130]   65536 ->   55892 pts      79.4 ms      111 MiB
+  [ 140]   65536 ->   55656 pts      83.5 ms      111 MiB
+  [ 150]   65536 ->   54967 pts      82.6 ms      113 MiB
+  [ 160]   65536 ->   54486 pts      92.0 ms      113 MiB
+  [ 170]   65536 ->   54481 pts      74.9 ms      114 MiB
+  [ 180]   65536 ->   53447 pts      59.8 ms      115 MiB
+  [ 190]   65536 ->   53183 pts      47.5 ms      117 MiB
+  [ 200]   65536 ->   53484 pts      44.7 ms      118 MiB
+  [ 210]   65536 ->   53358 pts      50.2 ms      119 MiB
+  [ 220]   65536 ->   53962 pts      52.3 ms      120 MiB
+  [ 230]   65536 ->   53697 pts      67.6 ms      122 MiB
+  [ 240]   65536 ->   53704 pts      51.7 ms      124 MiB
+  [ 250]   65536 ->   54038 pts      56.9 ms      125 MiB
+  [ 260]   65536 ->   53890 pts      49.4 ms      127 MiB
+  [ 270]   65536 ->   53544 pts      69.2 ms      129 MiB
+  [ 280]   65536 ->   53328 pts      57.7 ms      132 MiB
+  [ 290]   65536 ->   53294 pts      62.6 ms      134 MiB
+  [ 299]   65536 ->   53339 pts      95.7 ms      136 MiB
+
+Extrayendo malla (101 repeticion(es))...
+Malla: 851194 vertices, 1476683 triangulos
+Guardada en: results/opt-pc1-nicole/native/mesh.ply  (escritura 1281.3 ms)
+
+Tiempo de pared por etapa (300 muestras, ms):
+  etapa          media      std      p50      p95      max
+  read            0.72     0.14     0.70     0.86     2.59
+  filter          0.24     0.03     0.24     0.30     0.48
+  convert         0.15     0.03     0.15     0.20     0.63
+  register       42.15    22.54    41.02    82.02   135.49
+  transform       1.30     0.09     1.29     1.38     2.50
+  integrate      38.10     3.94    37.38    43.21    56.23
+  TOTAL/scan     82.66    25.30    81.80   128.14   179.96
+
+Extraccion de malla (101 muestras, ms):
+  mesh         1082.78    24.10  1077.15  1126.04  1171.43
+
+Ciclo de scans: 24819.4 ms en total, 12.09 scans/s (pipeline off)
+
+Memoria: RSS final 373 MiB, pico 373 MiB
+Tiempos por scan en: results/opt-pc1-nicole/native/timings.csv
+Tiempos de malla en: results/opt-pc1-nicole/native/mesh.csv
+	Command being timed: "build-native/recon --scans data/ncd_sample/scans --out results/opt-pc1-nicole/native/mesh.ply --timing-csv results/opt-pc1-nicole/native/timings.csv --mesh-csv results/opt-pc1-nicole/native/mesh.csv --mesh-repeats 101 --pipeline off --icp-voxel 1.0"
+	User time (seconds): 166.83
+	System time (seconds): 0.97
+	Percent of CPU this job got: 123%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:15.56
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 383096
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 138394
+	Voluntary context switches: 5922
+	Involuntary context switches: 18825
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 99296
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
