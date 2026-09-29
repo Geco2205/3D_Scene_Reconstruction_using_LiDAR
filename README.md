@@ -113,6 +113,7 @@ ls data/ncd | wc -l           # expected: 15301
 | `--min-range <m>` | `1.0` | Minimum point range |
 | `--max-range <m>` | `60.0` | Maximum point range |
 | `--timing-csv <file>` | — | Write per-stage timings to a CSV file |
+| `--pipeline <mode>` | `off` | Task parallelism: `off`, `prefetch` or `full` (see [Optimizations](#optimizations)) |
 
 Scans are processed in timestamp order. File names follow
 `cloud_<sec>_<nsec>.pcd` and are sorted numerically, because the nanosecond
@@ -121,8 +122,70 @@ field does not always have 9 digits.
 ## Outputs
 
 - **`<out>.ply`**: triangle mesh (ASCII PLY). Open it with MeshLab or CloudCompare.
-- **`<timing-csv>`**: one row per scan with columns
-  `scan, points_in, points_kept, read_ms, filter_ms, convert_ms, register_ms, integrate_ms`.
+- **`<timing-csv>`**: one row per scan. For each stage (`read`, `filter`,
+  `convert`, `register`, `transform`, `integrate`) there is a wall-clock column
+  `<stage>_ms` and a process CPU-time column `<stage>_cpu_ms`, plus
+  `scan, points_in, points_kept` and `rss_kb` (resident memory after the scan).
+- **`<mesh-csv>`**: one row per mesh extraction with
+  `repeat, mesh_ms, mesh_cpu_ms, vertices, triangles`.
+
+### Per-stage instrumentation
+
+The pipeline is instrumented so that each stage is measured with two clocks:
+wall time (`steady_clock`) and process CPU time (`CLOCK_PROCESS_CPUTIME_ID`,
+summed over all threads). Their ratio is the average number of cores the stage
+used, which is what tells a stage that is slow apart from one that is already
+parallel. Memory is read from `/proc/self/statm` at the end of every scan, and
+the process peak from `getrusage`.
+
+The stages are `read`, `filter`, `convert`, `register`, `transform` and
+`integrate`. `transform` (mapping the points into the global frame) is measured
+separately from the TSDF integration: in the original code that loop sat inside
+the integration timer and inflated it.
+
+#### Running it
+
+```bash
+tools/run_profile.sh --label pc1-nicole --scans data/ncd_sample/scans --icp-voxel 1.0
+```
+
+Plug in laptops and close other programs first, because on battery the
+processor lowers its frequency and the times stop being comparable. On a
+desktop CPU it takes about 3 minutes; on the Kria or the Jetson it takes longer,
+mostly because of the 101 mesh repetitions.
+
+It writes `results/<label>/` with `timings.csv`, `mesh.csv`, `system.txt` and
+`run.log`. Mesh extraction happens once per sequence, so it is repeated on the
+final volume (`--mesh-repeats`, 101 by default) to reach more than 100 samples
+per stage, as the project requires. The 300-scan sample gives 300 samples for
+every per-scan stage.
+
+`system.txt` records the arguments, compiler, build flags, commit, CPU model
+and thread count, so that a difference between machines can be explained rather
+than guessed.
+
+#### Analyzing it
+
+```bash
+python3 tools/analyze_profile.py results
+```
+
+It reads every `results/*/timings.csv` and writes to `results/analysis/`:
+
+| File | Content |
+|---|---|
+| `summary.md` | Per machine: n, mean, std, 95 % CI, min, p50, p95, max, share of the scan time and CPU/wall ratio for each stage, plus memory and throughput. A cross-machine comparison table when there is more than one machine. |
+| `summary.csv` | The same statistics in tabular form |
+| `fig_breakdown.png` | Mean time per scan split by stage, one bar per machine |
+| `fig_stages_box.png` | Distribution of every stage per machine (log scale) |
+| `fig_timeline_<label>.png` | Time per scan and resident memory along the sequence |
+
+`--skip-first N` drops the first `N` scans of every machine as warm-up (the
+first registrations are cheaper because the local map is still empty).
+
+The script checks that every stage has more than 100 samples and reports which
+ones fall short, since with fewer samples the confidence interval of the mean
+is not useful.
 
 
 ## Optimizations
@@ -229,13 +292,13 @@ on the same machine (from the `Ciclo de scans` line of
 
 | Variant | PC1 (i3-1115G4) | PC2 (i5-1135G7) | Kria KV260 |
 |---|---:|---:|---:|
-| base | | 19.68 (1.00×) | |
-| prefetch | | 19.70 (1.00×) | |
-| full | | 29.17 (1.48×) | |
-| native | | 20.33 (1.03×) | |
-| lto | | 19.67 (1.00×) | |
-| soa | | 19.37 (0.98×) | |
-| all | | 29.06 (1.48×) | |
+| base | 11.75 (1.00×) | 19.68 (1.00×) | |
+| prefetch | 11.81 (1.00×) | 19.70 (1.00×) | |
+| full | 14.07 (1.20×) | 29.17 (1.48×) | |
+| native | 12.09 (1.03×) | 20.33 (1.03×) | |
+| lto | 11.56 (0.98×) | 19.67 (1.00×) | |
+| soa | 12.12 (1.03×) | 19.37 (0.98×) | |
+| all | 17.93 (1.53×) | 29.06 (1.48×) | |
 | noneon (ARM only) | — | — | |
 
 
