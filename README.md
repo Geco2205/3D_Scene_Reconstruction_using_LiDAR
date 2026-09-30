@@ -8,8 +8,15 @@ It turns a sequence of LiDAR scans into a 3D triangle mesh of the environment.
 .pcd scans → range filter (NEON/scalar) → KISS-ICP (pose) → VDBFusion (TSDF) → .ply mesh
 ```
 
+
 This is the CPU baseline of the project. Later stages will offload the bottlenecks
 found here to a GPU (NVIDIA Jetson Nano, CUDA) and an FPGA (AMD Kria KV260, HLS).
+
+## Youtube Video
+
+This youtube video showcase a little demostration of the pipeline working a seeing the mesh at meshlab.
+
+https://youtu.be/nKCmF2cM_jg
 
 ## What is reused and what we wrote
 
@@ -73,7 +80,7 @@ We use the [Newer College Dataset](https://ori-drs.github.io/newer-college-datas
 ### Option A: sample (300 scans, ~30 s of walking)
 
 A ready-to-use sample with the matching ground-truth poses is attached to the
-[v0.1.0 release](https://github.com/Geco2205/3D_Scene_Reconstruction_using_LiDAR/releases/tag/v0.1.0):
+[v1.0.0 release](https://github.com/Geco2205/3D_Scene_Reconstruction_using_LiDAR/releases/tag/v1.0.0):
 
 ```bash
 wget https://github.com/Geco2205/3D_Scene_Reconstruction_using_LiDAR/releases/download/v0.1.0/ncd_sample.zip
@@ -128,6 +135,36 @@ field does not always have 9 digits.
   `scan, points_in, points_kept` and `rss_kb` (resident memory after the scan).
 - **`<mesh-csv>`**: one row per mesh extraction with
   `repeat, mesh_ms, mesh_cpu_ms, vertices, triangles`.
+
+## Viewing the mesh
+
+We use [MeshLab](https://www.meshlab.net/) to inspect the reconstruction.
+
+Fedora:
+
+```bash
+sudo dnf install meshlab
+```
+
+Ubuntu:
+
+```bash
+sudo apt install meshlab
+```
+
+Open the mesh:
+
+```bash
+meshlab sample.ply
+```
+
+If the 3D view is blank (common on Wayland, the default on Fedora and recent
+Ubuntu), launch it with:
+
+```bash
+QT_QPA_PLATFORM=xcb meshlab sample.ply
+```
+  
 
 ### Per-stage instrumentation
 
@@ -318,37 +355,16 @@ did not outperform the task-parallel pipeline by itself on this platform.
 
 
 
-## Viewing the mesh
-
-We use [MeshLab](https://www.meshlab.net/) to inspect the reconstruction.
-
-Fedora:
-
-```bash
-sudo dnf install meshlab
-```
-
-Ubuntu:
-
-```bash
-sudo apt install meshlab
-```
-
-Open the mesh:
-
-```bash
-meshlab sample.ply
-```
-
-If the 3D view is blank (common on Wayland, the default on Fedora and recent
-Ubuntu), launch it with:
-
-```bash
-QT_QPA_PLATFORM=xcb meshlab sample.ply
-```
 
 
 
+## Next steps
+
+The next steps are to implement the TSDF integration in CUDA on the Jetson Nano,
+since each point updates its voxels independently, and to accelerate the
+nearest-neighbor search of the registration, either on the GPU or on an HLS
+pipeline on the Kria KV260, given that it is the stage most affected by the
+embedded platform's limited core count.
 
 
 
@@ -365,6 +381,8 @@ Gerson: https://claude.ai/share/be045057-e15d-462e-9e98-40855a3e21fa
 Nicole: https://chatgpt.com/share/6ab9b72b-0e5c-83e8-983b-1d71080f1d52
 
 Keilin: https://chatgpt.com/share/6abbee3d-ba9c-83e8-bdcb-177f0710a5cb
+
+Gonzalo: https://chatgpt.com/share/6abc539e-4118-83e8-bd86-a0ebd38bcdda
 
 
 ## References
