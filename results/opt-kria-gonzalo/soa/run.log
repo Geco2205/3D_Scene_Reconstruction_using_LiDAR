@@ -1,0 +1,85 @@
+Scans encontrados : 300  (se procesan 300)
+Voxel TSDF / ICP  : 0.1 m / 1 m
+Rango             : [1, 60] m
+Filtro            : NEON
+Compilador        : 11.4.0
+Optimizaciones    : NATIVE=0 LTO=0 SOA_ALIGNED=1
+Pipeline          : off
+
+  [   0]   65536 ->   57269 pts     393.6 ms       54 MiB
+  [  10]   65536 ->   57244 pts     761.3 ms       81 MiB
+  [  20]   65536 ->   56950 pts     544.5 ms       85 MiB
+  [  30]   65536 ->   56945 pts     642.2 ms       87 MiB
+  [  40]   65536 ->   56454 pts     599.1 ms       90 MiB
+  [  50]   65536 ->   56687 pts     768.9 ms       91 MiB
+  [  60]   65536 ->   56751 pts     760.4 ms       95 MiB
+  [  70]   65536 ->   56419 pts     645.8 ms       98 MiB
+  [  80]   65536 ->   56429 pts     635.6 ms      102 MiB
+  [  90]   65536 ->   55948 pts     845.0 ms      104 MiB
+  [ 100]   65536 ->   56222 pts     826.1 ms      108 MiB
+  [ 110]   65536 ->   56157 pts     717.8 ms      112 MiB
+  [ 120]   65536 ->   55769 pts     771.9 ms      115 MiB
+  [ 130]   65536 ->   55892 pts     544.2 ms      119 MiB
+  [ 140]   65536 ->   55656 pts     584.2 ms      120 MiB
+  [ 150]   65536 ->   54967 pts     594.9 ms      124 MiB
+  [ 160]   65536 ->   54486 pts     622.2 ms      127 MiB
+  [ 170]   65536 ->   54481 pts     542.0 ms      130 MiB
+  [ 180]   65536 ->   53447 pts     415.6 ms      131 MiB
+  [ 190]   65536 ->   53183 pts     335.6 ms      132 MiB
+  [ 200]   65536 ->   53484 pts     310.0 ms      135 MiB
+  [ 210]   65536 ->   53358 pts     355.6 ms      136 MiB
+  [ 220]   65536 ->   53962 pts     322.1 ms      136 MiB
+  [ 230]   65536 ->   53697 pts     385.9 ms      136 MiB
+  [ 240]   65536 ->   53704 pts     356.5 ms      136 MiB
+  [ 250]   65536 ->   54038 pts     402.7 ms      137 MiB
+  [ 260]   65536 ->   53890 pts     345.0 ms      138 MiB
+  [ 270]   65536 ->   53544 pts     500.4 ms      141 MiB
+  [ 280]   65536 ->   53328 pts     395.8 ms      142 MiB
+  [ 290]   65536 ->   53294 pts     443.1 ms      144 MiB
+  [ 299]   65536 ->   53339 pts     691.6 ms      145 MiB
+
+Extrayendo malla (101 repeticion(es))...
+Malla: 851194 vertices, 1476683 triangulos
+Guardada en: results/opt-kria-gonzalo/soa/mesh.ply  (escritura 9047.0 ms)
+
+Tiempo de pared por etapa (300 muestras, ms):
+  etapa          media      std      p50      p95      max
+  read            3.51     0.23     3.49     3.60     6.86
+  filter          1.40     0.06     1.39     1.46     2.14
+  convert         0.79     0.10     0.79     0.85     2.30
+  register      305.79   163.87   304.61   593.63   806.17
+  transform       4.31     0.12     4.32     4.47     4.58
+  integrate     253.94    19.69   245.56   280.67   337.95
+  TOTAL/scan    569.73   176.88   563.85   865.75  1061.25
+
+Extraccion de malla (101 muestras, ms):
+  mesh         4855.18    71.32  4825.10  5028.75  5108.48
+
+Ciclo de scans: 171006.9 ms en total, 1.75 scans/s (pipeline off)
+
+Memoria: RSS final 344 MiB, pico 344 MiB
+Tiempos por scan en: results/opt-kria-gonzalo/soa/timings.csv
+Tiempos de malla en: results/opt-kria-gonzalo/soa/mesh.csv
+	Command being timed: "build-soa/recon --scans data/ncd_sample/scans --out results/opt-kria-gonzalo/soa/mesh.ply --timing-csv results/opt-kria-gonzalo/soa/timings.csv --mesh-csv results/opt-kria-gonzalo/soa/mesh.csv --mesh-repeats 101 --pipeline off --icp-voxel 1.0"
+	User time (seconds): 916.35
+	System time (seconds): 8.04
+	Percent of CPU this job got: 137%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 11:10.69
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 353888
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 125084
+	Voluntary context switches: 5750
+	Involuntary context switches: 18677
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 99304
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

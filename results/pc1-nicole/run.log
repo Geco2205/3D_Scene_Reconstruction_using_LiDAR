@@ -1,0 +1,81 @@
+Scans encontrados : 300  (se procesan 300)
+Voxel TSDF / ICP  : 0.1 m / 1 m
+Rango             : [1, 60] m
+Filtro            : escalar
+Compilador        : 13.3.0
+
+  [   0]   65536 ->   57269 pts      78.3 ms       63 MiB
+  [  10]   65536 ->   57244 pts     119.8 ms       90 MiB
+  [  20]   65536 ->   56950 pts      81.5 ms       93 MiB
+  [  30]   65536 ->   56945 pts      93.2 ms       95 MiB
+  [  40]   65536 ->   56454 pts      97.6 ms       98 MiB
+  [  50]   65536 ->   56687 pts     113.5 ms      100 MiB
+  [  60]   65536 ->   56751 pts     120.0 ms      102 MiB
+  [  70]   65536 ->   56419 pts      96.5 ms      104 MiB
+  [  80]   65536 ->   56429 pts     112.5 ms      106 MiB
+  [  90]   65536 ->   55948 pts     125.9 ms      107 MiB
+  [ 100]   65536 ->   56222 pts     125.7 ms      109 MiB
+  [ 110]   65536 ->   56157 pts     110.6 ms      109 MiB
+  [ 120]   65536 ->   55769 pts     119.1 ms      110 MiB
+  [ 130]   65536 ->   55892 pts      84.9 ms      111 MiB
+  [ 140]   65536 ->   55656 pts      85.0 ms      113 MiB
+  [ 150]   65536 ->   54967 pts      86.5 ms      113 MiB
+  [ 160]   65536 ->   54486 pts      91.7 ms      114 MiB
+  [ 170]   65536 ->   54481 pts      87.9 ms      116 MiB
+  [ 180]   65536 ->   53447 pts      60.9 ms      117 MiB
+  [ 190]   65536 ->   53182 pts      48.9 ms      118 MiB
+  [ 200]   65536 ->   53484 pts      45.9 ms      119 MiB
+  [ 210]   65536 ->   53358 pts      55.0 ms      120 MiB
+  [ 220]   65536 ->   53962 pts      47.2 ms      121 MiB
+  [ 230]   65536 ->   53697 pts      56.9 ms      123 MiB
+  [ 240]   65536 ->   53704 pts      52.6 ms      125 MiB
+  [ 250]   65536 ->   54038 pts      59.5 ms      127 MiB
+  [ 260]   65536 ->   53890 pts      50.7 ms      129 MiB
+  [ 270]   65536 ->   53544 pts      71.6 ms      130 MiB
+  [ 280]   65536 ->   53328 pts      58.7 ms      132 MiB
+  [ 290]   65536 ->   53294 pts      65.6 ms      135 MiB
+  [ 299]   65536 ->   53339 pts     105.6 ms      136 MiB
+
+Extrayendo malla (101 repeticion(es))...
+Malla: 851194 vertices, 1476686 triangulos
+Guardada en: results/pc1-nicole/mesh.ply  (escritura 917.9 ms)
+
+Tiempo de pared por etapa (300 muestras, ms):
+  etapa          media      std      p50      p95      max
+  read            0.72     0.14     0.69     0.86     2.60
+  filter          0.26     0.04     0.25     0.31     0.66
+  convert         0.16     0.04     0.16     0.22     0.81
+  register       45.67    24.82    44.52    91.74   138.07
+  transform       1.34     0.07     1.33     1.45     1.68
+  integrate      38.50     4.30    38.09    43.70    60.79
+  TOTAL/scan     86.65    27.70    86.47   135.98   176.19
+
+Extraccion de malla (101 muestras, ms):
+  mesh         1047.45    12.67  1044.38  1069.37  1109.50
+
+Memoria: RSS final 351 MiB, pico 351 MiB
+Tiempos por scan en: results/pc1-nicole/timings.csv
+Tiempos de malla en: results/pc1-nicole/mesh.csv
+	Command being timed: "build/recon --scans data/ncd_sample/scans --out results/pc1-nicole/mesh.ply --timing-csv results/pc1-nicole/timings.csv --mesh-csv results/pc1-nicole/mesh.csv --mesh-repeats 101 --icp-voxel 1.0"
+	User time (seconds): 165.00
+	System time (seconds): 1.32
+	Percent of CPU this job got: 125%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:12.80
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 359836
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 360509
+	Voluntary context switches: 6884
+	Involuntary context switches: 41478
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 99296
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

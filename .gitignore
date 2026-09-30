@@ -74,3 +74,15 @@ data/
 *.ply
 *.csv
 *.zip
+
+# El dataset puede estar enlazado desde otra carpeta, no solo ser un directorio.
+data
+data/
+
+# Profiling results are versioned (one folder per machine)
+!results/**/*.csv
+# run.log tiene el RSS pico que reporta /usr/bin/time -v, y analyze_profile.py
+# lo lee de ahi. Sin esto, el pico de memoria no aparece en las tablas.
+!results/**/*.log
+# Copias de la consola de run_optimizations.sh (duplican run.log)
+results/**/*.console.log

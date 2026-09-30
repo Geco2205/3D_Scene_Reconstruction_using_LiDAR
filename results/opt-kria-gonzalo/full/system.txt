@@ -1,0 +1,28 @@
+label:        full
+date:         2026-09-28T05:45:08+00:00
+hostname:     kria
+kernel:       Linux 5.15.0-1027-xilinx-zynqmp aarch64
+os:           Ubuntu 22.04.4 LTS
+cpu_model:    Cortex-A53
+cpu_arch:     aarch64
+cpu_count:    4
+cpu_max_mhz:  1333.3330
+cpu_governor: userspace
+mem_total:    3.8 GiB
+compiler:     c++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+cmake:        cmake version 3.22.1
+git_commit:   4db512f
+git_dirty:    no
+build_type:   Release
+cxx_flags:    
+cxx_flags_rel: -O3 -DNDEBUG
+cxx_compiler: /usr/bin/c++
+OPT_NATIVE:   OFF
+OPT_LTO:      OFF
+OPT_SOA_ALIGNED: OFF
+OPT_NEON:     ON
+scans_dir:    data/ncd_sample/scans
+mesh_repeats: 101
+extra_args:   --pipeline full --icp-voxel 1.0
+pipeline:     full
+load_avg:     1.00 1.13 1.24
