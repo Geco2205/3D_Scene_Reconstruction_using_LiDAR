@@ -1,0 +1,17 @@
+tipo,nombre,eventos,total,media,max
+tiempo_ms,preprocess,300,737.1938,2.45731,5.4580
+tiempo_ms,voxelize,300,3208.1780,10.69393,17.0994
+tiempo_ms,adaptive_threshold,300,0.1025,0.00034,0.0009
+tiempo_ms,icp,300,108382.0907,361.27364,1013.4558
+tiempo_ms,update_threshold,300,0.9706,0.00324,0.0502
+tiempo_ms,update_local_map,300,752.2696,2.50757,6.6225
+tiempo_ms,register_frame,300,113230.3563,377.43452,1028.5902
+tiempo_ms,data_association,9263,104815.7111,11.31553,37.2339
+tiempo_ms,build_linear_system,9263,2928.8705,0.31619,5.8463
+tiempo_ms,solve_6x6,9263,56.5303,0.00610,0.0630
+tiempo_ms,transform_points,9263,466.5023,0.05036,0.4492
+contador,points_cropped,300,16516269,55054.230,57465
+contador,points_source_icp,300,391879,1306.263,2096
+contador,points_map_update,300,2065136,6883.787,11845
+contador,icp_iterations,9263,9263,1.000,1
+contador,correspondences,9263,11864440,1280.842,2096

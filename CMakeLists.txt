@@ -17,12 +17,13 @@ endif()
 # y otro que cambio los accesores a referencias. Fijar el tag es lo que hace
 # reproducible la build y lo que exige el enunciado del curso.
 #
-# Antes de la primera compilacion: abran cpp/kiss_icp/pipeline/KissICP.hpp de la
-# version que quedo en _deps/ y verifiquen la firma de RegisterFrame y los
+# Antes de la primera compilacion: abran third_party/kiss_icp/pipeline/KissICP.hpp
+# (version copiada en el repo) y verifiquen la firma de RegisterFrame y los
 # campos de KISSConfig. Si no coinciden con lo que usa src/main.cpp, ajusten
 # main.cpp (no la biblioteca) y anoten la version en el paper.
 # -----------------------------------------------------------------------------
-set(KISS_ICP_TAG "v1.0.0"   CACHE STRING "Tag de PRBonn/kiss-icp")
+# KISS-ICP ya no se descarga: esta copiado (y modificado) en third_party/kiss_icp.
+# Version base: PRBonn/kiss-icp v1.0.0. Ver third_party/kiss_icp/UPSTREAM.md.
 set(VDBFUSION_TAG "v0.1.6"  CACHE STRING "Tag de PRBonn/vdbfusion")
 
 # -----------------------------------------------------------------------------
@@ -74,13 +75,14 @@ endif()
 message(STATUS "Optimizaciones: NATIVE=${RECON_OPT_NATIVE} LTO=${RECON_OPT_LTO} "
                "SOA_ALIGNED=${RECON_OPT_SOA_ALIGNED} NEON=${RECON_OPT_NEON}")
 
+# Optional GPU offload of KISS-ICP's data association (cmake/ReconGpu.cmake)
+include(cmake/ReconGpu.cmake)
+
 include(FetchContent)
 
-FetchContent_Declare(kiss_icp
-  GIT_REPOSITORY https://github.com/PRBonn/kiss-icp.git
-  GIT_TAG        ${KISS_ICP_TAG}
-  SOURCE_SUBDIR  cpp/kiss_icp)
-FetchContent_MakeAvailable(kiss_icp)
+# KISS-ICP vendored: modified copy of PRBonn/kiss-icp v1.0.0 (see UPSTREAM.md there)
+add_subdirectory(third_party/kiss_icp)
+recon_gpu_attach()
 
 # OpenVDB del sistema (Ubuntu/Kria: primera ruta; Fedora: segunda)
 list(APPEND CMAKE_MODULE_PATH
