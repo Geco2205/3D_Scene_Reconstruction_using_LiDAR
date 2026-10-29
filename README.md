@@ -114,6 +114,43 @@ for z in ouster_scan-*.zip; do unzip -jq "$z" -d data/ncd; done
 rm -f data/ncd/*"(1)".pcd    # one file is duplicated in the zips
 ls data/ncd | wc -l           # expected: 15301
 ```
+### Option C: your own scans
+
+`recon` works with any LiDAR sequence stored as one PCD file per scan, not only with the Newer College Dataset.
+
+| Requirement | Detail |
+|---|---|
+| Format | PCD with `DATA ascii` or `DATA binary`. `binary_compressed` is not supported: the reader stops with an error asking to convert the file |
+| Fields | `x`, `y` and `z` as `float32` (`SIZE 4`, `TYPE F`). Any other field (intensity, ring, time, ...) is ignored, in any order |
+| Invalid points | Points with `NaN` or infinite coordinates are dropped. In ASCII files, empty lines, `#` comments and truncated lines are skipped |
+| Frame | One file is one scan, with the points in the sensor frame. Per-point timestamps are not used (deskewing is off) |
+| File names | One directory, `.pcd` extension. Scans are sorted by the numbers in the name (first number, then the second, ...): `cloud_<sec>_<nsec>.pcd` or `000001.pcd`, `000002.pcd`, ... A name without numbers goes last, sorted alphabetically |
+| Other formats | `.bin`, `.ply` or `.las` must be converted to PCD first (for example with PCL or Open3D) |
+
+Adjust these options to the new sensor and scene:
+
+| Option | Default | When to change it |
+|---|---|---|
+| `--min-range`, `--max-range` | `1.0`, `60.0` m | Match the sensor: drop returns from the sensor body or beyond its useful range |
+| `--icp-voxel` | `0.50` m | KISS-ICP voxel size (the 300-scan sample uses `1.0`) |
+| `--tsdf-voxel` | `0.10` m | Mesh resolution: smaller voxels give more detail and use more memory |
+| `--max-scans` | `0` (all) | Process only the first N scans to test the setup quickly |
+| `--timing-csv` | none | Write per-stage timings |
+
+```bash
+./build/recon --scans data/my_scene --out my_scene.ply \
+    --icp-voxel 1.0 --max-range 30 --max-scans 20 --timing-csv my_scene_timings.csv
+```
+
+If something is wrong with a file, the program stops with one of these messages:
+
+| Message | Cause |
+|---|---|
+| `No se encontraron archivos .pcd en <dir>` | The directory has no `.pcd` files |
+| `PCD sin campos x/y/z` | The file has no fields named exactly `x`, `y` and `z` |
+| `se esperaba x/y/z como float32` | The coordinates are not `float32`; convert them |
+| `PCD binary_compressed no soportado` | Convert the file to `binary` or `ascii` |
+
 
 ## Program flow
 
@@ -266,6 +303,8 @@ gave both the method (measure the baseline, find where the time goes, optimize,
 measure again) and the techniques: task parallelism with producer-consumer
 queues and ping-pong buffers, compiler options (`-march=native`, LTO), and data
 layout as a structure of arrays aligned to the cache line.
+
+> **Are the optimizations incremental?** No: they are evaluated one at a time, not cumulatively. Every variant changes a single factor with respect to `base` and is compared with the same baseline, so the effect of each optimization can be isolated. The only cumulative variant is `all`, which combines them to check whether the gains add up (they do on PC1; on PC2 `all` equals `full`, and on the Kria it is lower). The GPU accelerator is a separate step measured on the Jetson Nano: the same binary runs on the CPU and, with `KISS_USE_GPU=1`, on the GPU.
  
 Each optimization can be switched on or off independently, so its effect is
 always measured against the same baseline. With the default build and
