@@ -1,0 +1,60 @@
+Scans encontrados : 300  (se procesan 300)
+Voxel TSDF / ICP  : 0.1 m / 1 m
+Rango             : [1, 60] m
+Filtro            : NEON
+Compilador        : 12.4.0
+Optimizaciones    : NATIVE=0 LTO=0 SOA_ALIGNED=0
+Pipeline          : off
+
+  [   0]   65536 ->   57269 pts     321.5 ms       58 MiB
+  [  10]   65536 ->   57244 pts     660.1 ms      103 MiB
+  [  20]   65536 ->   56950 pts     436.8 ms      106 MiB
+  [  30]   65536 ->   56945 pts     513.5 ms      113 MiB
+  [  40]   65536 ->   56454 pts     482.3 ms      114 MiB
+  [  50]   65536 ->   56687 pts     614.0 ms      115 MiB
+  [  60]   65536 ->   56751 pts     592.9 ms      117 MiB
+  [  70]   65536 ->   56419 pts     506.5 ms      120 MiB
+  [  80]   65536 ->   56429 pts     496.2 ms      121 MiB
+  [  90]   65536 ->   55948 pts     660.3 ms      122 MiB
+  [ 100]   65536 ->   56222 pts     630.5 ms      124 MiB
+  [ 110]   65536 ->   56157 pts     553.1 ms      125 MiB
+  [ 120]   65536 ->   55769 pts     587.5 ms      126 MiB
+  [ 130]   65536 ->   55892 pts     417.5 ms      128 MiB
+  [ 140]   65536 ->   55656 pts     463.3 ms      128 MiB
+  [ 150]   65536 ->   54967 pts     486.4 ms      130 MiB
+  [ 160]   65536 ->   54486 pts     480.4 ms      130 MiB
+  [ 170]   65536 ->   54481 pts     423.4 ms      132 MiB
+  [ 180]   65536 ->   53447 pts     333.8 ms      132 MiB
+  [ 190]   65536 ->   53182 pts     267.7 ms      134 MiB
+  [ 200]   65536 ->   53484 pts     246.6 ms      135 MiB
+  [ 210]   65536 ->   53358 pts     285.7 ms      136 MiB
+  [ 220]   65536 ->   53962 pts     258.0 ms      137 MiB
+  [ 230]   65536 ->   53697 pts     312.3 ms      139 MiB
+  [ 240]   65536 ->   53704 pts     281.3 ms      141 MiB
+  [ 250]   65536 ->   54038 pts     324.9 ms      142 MiB
+  [ 260]   65536 ->   53890 pts     269.5 ms      145 MiB
+  [ 270]   65536 ->   53544 pts     391.4 ms      147 MiB
+  [ 280]   65536 ->   53328 pts     307.5 ms      148 MiB
+  [ 290]   65536 ->   53294 pts     348.7 ms      150 MiB
+  [ 299]   65536 ->   53339 pts     541.0 ms      153 MiB
+
+Extrayendo malla (1 repeticion(es))...
+Malla: 851194 vertices, 1476683 triangulos
+Guardada en: /home/el5859/grupo4/proyecto/gpu_results/m.ply  (escritura 6686.8 ms)
+
+Tiempo de pared por etapa (300 muestras, ms):
+  etapa          media      std      p50      p95      max
+  read            4.25     0.26     4.22     4.29     7.77
+  filter          1.99     0.24     1.88     2.30     4.50
+  convert         0.51     0.09     0.50     0.55     2.06
+  register      251.31   131.37   245.69   485.46   738.26
+  transform       3.21     0.32     3.11     3.79     4.91
+  integrate     192.23    15.72   186.81   212.34   277.28
+  TOTAL/scan    453.49   142.25   448.68   695.45   934.36
+
+Extraccion de malla (1 muestras, ms):
+  mesh         3624.37     0.00  3624.37  3624.37  3624.37
+
+Ciclo de scans: 136097.2 ms en total, 2.20 scans/s (pipeline off)
+
+Memoria: RSS final 254 MiB, pico 292 MiB
