@@ -1,0 +1,6 @@
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/cpu_1.ply
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/cpu_2.ply
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/gpu_1.ply
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/gpu_2.ply
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/loop_1.ply
+1ebf710cb8e25d2ae86fc91531352bda  results_acc2/full/loop_2.ply
