@@ -352,3 +352,70 @@ extern "C" void gpu_free(void) {
 extern "C" void gpu_get_timing(GpuTiming* t) {
     if (t) *t = g_timing;
 }
+
+// =======================================================================
+// Uploads the scan points into the device buffer reserved by gpu_init.
+//
+// Receives: n, src, as described in gpu_associate.h.
+// Returns : 0 on success, -4 if the module is not initialised, -2 if n is not
+//           in [1, max_src] or src is null, -3 if the copy failed.
+//
+// A blocking cudaMemcpy, so the host array can be reused on return. It does not
+// need a map: the points and the map are independent buffers.
+extern "C" int gpu_set_source(int n, const double* src) {
+    if (!g_initialized) return -4;
+    if (n < 1 || n > g_max_src) return -2;
+    if (!src) return -2;
+
+    CUDA_TRY(cudaMemcpy(d_src, src, sizeof(double) * 3 * n,
+                        cudaMemcpyHostToDevice));
+    return 0;
+}
+
+// =======================================================================
+// Launches the association on device-resident points, with no transfers.
+//
+// Receives: n, max_dist, as described in gpu_associate.h.
+// Returns : 0 on success, -2 on an invalid n, -4 if the module is not
+//           initialised or no map is loaded, -3 if the launch failed.
+//
+// Same kernel and grid as gpu_run (128 threads per block, last block rounded
+// up). It does not synchronise: cudaGetLastError only catches launch failures.
+// The kernel runs on the default stream, so any later kernel or blocking copy
+// on that stream is ordered after it.
+extern "C" int gpu_run_device(int n, double max_dist) {
+    if (!g_initialized) return -4;
+    if (!g_map_loaded) return -4;
+    if (n < 0 || n > g_max_src) return -2;
+    if (n == 0) return 0;          // nothing to do, no kernel launched
+
+    const int blocks = (n + kThreadsPerBlock - 1) / kThreadsPerBlock;
+    associate_kernel<<<blocks, kThreadsPerBlock>>>(
+        d_src, n, d_coords, d_start, d_count, g_n_vox,
+        d_pts, g_voxel_size, max_dist, d_out);
+
+    CUDA_TRY(cudaGetLastError());  // launch failures only; the call is asynchronous
+    return 0;
+}
+
+// =======================================================================
+// Device-pointer accessors.
+//
+// Receive: nothing.
+// Return : the device address of the buffer, or nullptr if the module is not
+//          initialised.
+//
+// They hand out the buffers reserved by gpu_init so other modules can work on
+// them without copying. The pointers stay valid until gpu_free or the next
+// gpu_init. Only d_src is returned as writable.
+extern "C" double* gpu_dev_src(void) {
+    return g_initialized ? d_src : nullptr;
+}
+
+extern "C" const double* gpu_dev_pts(void) {
+    return g_initialized ? d_pts : nullptr;
+}
+
+extern "C" const int* gpu_dev_idx(void) {
+    return g_initialized ? d_out : nullptr;
+}

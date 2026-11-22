@@ -118,6 +118,87 @@ typedef struct {
 // bus.
 void gpu_get_timing(GpuTiming* t);
 
+// --- Device-resident path ----------------------------------------------
+// These functions let the ICP loop keep the scan points and the indices in GPU
+// memory, so nothing crosses the bus between iterations. gpu_run is not
+// affected and keeps working as before.
+//
+//     gpu_set_map(...);                         // once per scan
+//     gpu_set_source(n, src);                   // once per scan
+//     for (each ICP iteration) {
+//         gpu_run_device(n, max_dist);          // writes gpu_dev_idx()
+//         ... other kernels read gpu_dev_src(), gpu_dev_pts(), gpu_dev_idx()
+//         ... and may transform gpu_dev_src() in place
+//     }
+//
+// gpu_run also writes d_src. Mixing gpu_run with the device-resident path in
+// the same scan overwrites the points uploaded by gpu_set_source.
+
+// Uploads the scan points to the device buffer reserved by gpu_init.
+//
+// Receives: n, number of scan points; src, HOST array of 3*n doubles (x, y, z
+//           per point), already in the map frame.
+// Returns : 0 on success, -4 if the module is not initialised, -2 if n is not
+//           between 1 and max_src or src is null, -3 if the copy failed.
+//
+// The copy is a blocking cudaMemcpy, so src can be reused or freed as soon as
+// the call returns. No map is required for this call.
+int gpu_set_source(int n, const double* src);
+
+// Runs the association on the points already in device memory.
+//
+// Receives: n, number of scan points to process, read from the first 3*n
+//           doubles of d_src; max_dist, largest accepted correspondence
+//           distance.
+// Returns : 0 on success, -2 if n is negative or exceeds max_src, -4 if the
+//           module is not initialised or no map is loaded, -3 if the launch
+//           failed.
+//
+// Launches the same associate_kernel as gpu_run, reading d_src and writing
+// d_out, with no copy in either direction. The call is ASYNCHRONOUS: it only
+// checks cudaGetLastError, so it reports launch failures but not execution
+// failures, and it returns before the kernel finishes. Later work on the
+// default stream (another kernel, or a blocking cudaMemcpy) runs after it, so
+// that work sees the finished indices. An execution failure surfaces in the
+// next synchronising CUDA call.
+//
+// The caller must have filled the first n points of d_src, with gpu_set_source
+// or with a kernel that writes gpu_dev_src(). No timing is recorded. With
+// n == 0 it returns 0 without launching anything.
+int gpu_run_device(int n, double max_dist);
+
+// Device pointer to the scan points (3 * max_src doubles).
+//
+// Receives: nothing.
+// Returns : the device address of d_src, or NULL if the module is not
+//           initialised.
+//
+// Writable, so another kernel (for example the point transform of the ICP
+// module) can update the points in place. Valid until gpu_free or the next
+// gpu_init.
+double* gpu_dev_src(void);
+
+// Device pointer to the map points (3 * max_pts doubles).
+//
+// Receives: nothing.
+// Returns : the device address of d_pts, or NULL if the module is not
+//           initialised.
+//
+// Read only for the caller. Its contents are meaningful only after a
+// successful gpu_set_map. The indices written by gpu_run_device are positions
+// inside this array.
+const double* gpu_dev_pts(void);
+
+// Device pointer to the association result (max_src ints).
+//
+// Receives: nothing.
+// Returns : the device address of d_out, or NULL if the module is not
+//           initialised.
+//
+// Entry i is the index of the neighbour of scan point i inside d_pts, or -1 if
+// it has none. Read only for the caller. Written by gpu_run and gpu_run_device.
+const int* gpu_dev_idx(void);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
