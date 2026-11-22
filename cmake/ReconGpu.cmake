@@ -32,10 +32,13 @@ function(recon_gpu_attach)
     COMMAND ${CMAKE_COMMAND} -E make_directory ${_out}
     COMMAND ${RECON_NVCC} -ccbin ${RECON_CUDA_HOST_COMPILER} -std=c++14 --fmad=false -O2
             -arch=${RECON_CUDA_ARCH} -Xcompiler -fPIC -I${_gdir} -c ${_gdir}/gpu_associate.cu -o ${_out}/gpu_associate.o
-    COMMAND ${CMAKE_AR} rcs ${_out}/libgpu_assoc.a ${_out}/gpu_associate.o
+    COMMAND ${RECON_NVCC} -ccbin ${RECON_CUDA_HOST_COMPILER} -std=c++14 --fmad=false -O2
+            -arch=${RECON_CUDA_ARCH} -Xcompiler -fPIC -I${_gdir} -c ${_gdir}/gpu_icp.cu -o ${_out}/gpu_icp.o
+    COMMAND ${CMAKE_AR} rcs ${_out}/libgpu_assoc.a ${_out}/gpu_associate.o ${_out}/gpu_icp.o
     DEPENDS ${_gdir}/gpu_associate.cu ${_gdir}/gpu_associate.h ${_gdir}/voxel_search.h
             ${_gdir}/sort_voxels.h ${_gdir}/associate_one.h
-    COMMENT "nvcc: building the GPU data-association library")
+            ${_gdir}/gpu_icp.cu ${_gdir}/gpu_icp.h ${_gdir}/normal_eq_one.h ${_gdir}/transform_one.h
+    COMMENT "nvcc: building the GPU library (data association, normal equations, transform)")
   add_custom_target(gpu_assoc_build DEPENDS ${_out}/libgpu_assoc.a)
 
   add_library(gpu_assoc STATIC IMPORTED GLOBAL)

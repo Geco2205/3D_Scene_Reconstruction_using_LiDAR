@@ -1,0 +1,33 @@
+Scans encontrados : 300  (se procesan 20)
+Voxel TSDF / ICP  : 0.1 m / 1 m
+Rango             : [1, 60] m
+Filtro            : NEON
+Compilador        : 12.4.0
+Optimizaciones    : NATIVE=0 LTO=0 SOA_ALIGNED=0
+Pipeline          : off
+
+  [   0]   65536 ->   57269 pts     318.0 ms       58 MiB
+  [  10]   65536 ->   57244 pts     642.9 ms      102 MiB
+  [  19]   65536 ->   56997 pts     487.7 ms      106 MiB
+
+Extrayendo malla (1 repeticion(es))...
+Malla: 416702 vertices, 650405 triangulos
+Guardada en: results_acc2/smoke/loop_1.ply  (escritura 3296.2 ms)
+
+Tiempo de pared por etapa (20 muestras, ms):
+  etapa          media      std      p50      p95      max
+  read            4.64     0.96     4.22     6.09     7.78
+  filter          2.15     0.23     1.99     2.38     2.60
+  convert         0.58     0.34     0.50     0.54     2.02
+  register      308.32   126.94   302.43   496.17   571.23
+  transform       3.71     0.42     3.89     4.13     4.38
+  integrate     214.74    14.09   210.90   217.16   273.85
+  TOTAL/scan    534.13   120.25   528.68   721.57   791.63
+
+Extraccion de malla (1 muestras, ms):
+  mesh         1704.99     0.00  1704.99  1704.99  1704.99
+
+Ciclo de scans: 10686.5 ms en total, 1.87 scans/s (pipeline off)
+
+Memoria: RSS final 138 MiB, pico 169 MiB
+Tiempos por scan en: results_acc2/smoke/loop_1.csv

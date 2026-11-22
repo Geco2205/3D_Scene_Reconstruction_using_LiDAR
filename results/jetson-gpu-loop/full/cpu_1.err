@@ -1,0 +1,22 @@
+
+=== KISS-ICP: tiempos internos (std::chrono, pared, ms) ===
+region                 llamadas        total        media        max  % frame
+preprocess                  300       738.99        2.463       5.52     0.7%
+voxelize                    300      3213.60       10.712      17.30     2.8%
+adaptive_threshold          300         0.11        0.000       0.00     0.0%
+icp                         300    108217.53      360.725    1019.33    95.7%
+update_threshold            300         0.97        0.003       0.05     0.0%
+update_local_map            300       745.13        2.484       6.62     0.7%
+register_frame              300    113066.43      376.888    1034.54   100.0%
+data_association           9263    104635.61       11.296      32.89    92.5%
+build_linear_system        9263      2926.09        0.316       1.79     2.6%
+solve_6x6                  9263        55.12        0.006       0.06     0.0%
+transform_points           9263       491.34        0.053       0.41     0.4%
+
+contador                eventos           suma        media        max
+points_cropped              300       16516269     55054.23      57465
+points_source_icp           300         391879      1306.26       2096
+points_map_update           300        2065136      6883.79      11845
+icp_iterations             9263           9263         1.00          1
+correspondences            9263       11864440      1280.84       2096
+
