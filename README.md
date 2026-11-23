@@ -632,20 +632,6 @@ Sources: `results/jetson-gpu/` (`full_cpu_*.csv`, `full_gpu_*.csv` and the match
 | `nvcc` flags | `-std=c++14 --fmad=false -O2` | `cmake/ReconGpu.cmake` |
 | Return codes | `-1` map does not fit, `-2` too many scan points, `-3` CUDA failure, `-4` no map loaded | `gpu/gpu_associate.h` |
 
-## Next steps
- 
-The nearest-neighbour search of the registration now runs on the GPU. With it, TSDF
-integration is the largest remaining stage (42 % of the scan time on the Jetson Nano).
-The next steps, all still to be measured, are:
- 
-- - **Optimize the association kernel.** In Accelerator II it is about 75 % of the
-  registration. Candidate changes: compare squared distances and compute the square root
-  only for candidates that can improve the best (this keeps the CPU tie-breaking), a 64-bit
-  voxel key or a hash table instead of the binary search, the block size and, last, `float`
-  (which can change ties and needs its own equivalence criterion).
-- **Measure `--pipeline full` together with the GPU**, since registration and integration
-  can overlap.
-
 ## GPU accelerator II (ICP loop on the GPU)
 
 Accelerator I moved the nearest-neighbour search to the GPU, but every ICP iteration still
@@ -817,6 +803,107 @@ next-largest cost after the registration, but we decided not to move it to the G
 For these reasons the TSDF stays on the CPU, and it sets the ceiling of the cycle:
 once the registration is faster than the integration, the pipeline period is bounded
 by the ~190 ms integration step.
+
+## Accelerator II optimization: association kernel
+
+This stage closes the association-kernel optimization identified after Accelerator II.
+Accelerator II already keeps the map and source points on the GPU during ICP, so the
+optimization focuses on the dominant remaining CUDA kernel rather than adding more
+CPU↔GPU transfers.
+
+### Profiling-driven decision
+
+Direct `nvprof` measurements on the same first 20 scans produced 531 calls to each ICP
+kernel. In the Accelerator II baseline, `associate_kernel` accounted for about **94.6% of
+GPU activity** and averaged **8.53 ms/call** over two runs.
+
+Several candidates were tested independently:
+
+| Candidate | Result | Decision |
+|---|---|---|
+| 64 / 128 / 256 threads per block | differences below 1%, smaller than run-to-run variation | keep 128 |
+| fewer binary voxel searches | about 1.3% apparent gain, within variation | discard |
+| explicit read-only cache loads | SASS already uses `LDG` for the read-only buffers | no change |
+| FP32 distance calculation | changed ICP convergence and final mesh | discard |
+| reciprocal `voxel_size` | less than 1% apparent gain | discard |
+| initial `max_dist²` pruning | no measurable improvement | discard |
+| skip unnecessary FP64 square roots | clear and repeatable improvement, identical result | **keep** |
+
+The accepted version computes the squared distance first and evaluates `sqrt()` only when
+the candidate can improve the current minimum. The final strict distance comparison is kept,
+and the CPU reference path is unchanged.
+
+### Results
+
+| Metric | Accelerator II baseline | Optimized |
+|---|---:|---:|
+| `associate_kernel` | 8.53 ms/call | **5.72 ms/call** |
+| `register` | 238.30 ms/scan | **172.77 ms/scan** |
+| Total | 440.68 ms/scan | **373.06 ms/scan** |
+| Throughput | 2.27 scans/s | **2.68 scans/s** |
+| Peak RSS | 290 MiB | 291 MiB |
+
+The kernel is **1.49× faster** (32.9% less time), registration is 27.5% faster and
+end-to-end scan time decreases by 15.3%. Throughput increases by 18.1%.
+
+The 300-scan baseline and optimized runs both produce:
+
+- 9,263 ICP iterations;
+- 11,864,440 correspondences;
+- final mesh MD5 `1ebf710cb8e25d2ae86fc91531352bda`.
+
+Raw profiling evidence is stored in `results/gpu_opt_raw/`. The code change is isolated in
+`gpu/associate_one.h`.
+
+### Reproduce the final application profile
+
+Use the normal GPU build described above, then run Accelerator II with the profiler enabled:
+
+```bash
+mkdir -p results/gpu-opt-final
+
+KISS_USE_GPU=1 \
+KISS_GPU_LOOP=1 \
+KISS_PROFILE_OUT=results/gpu-opt-final/optimized/kiss_profile.csv \
+tools/run_profile.sh \
+  --label optimized \
+  --out-dir results/gpu-opt-final \
+  --bin build-gpu/recon \
+  --scans data/ncd_sample/scans \
+  --mesh-repeats 101 \
+  --icp-voxel 1.0
+```
+
+`--mesh-repeats 101` keeps more than 100 samples for mesh extraction; the 300-scan input
+already provides 300 samples for every per-scan stage.
+
+For direct CUDA profiling on the Jetson Nano, `nvprof` needs elevated profiling permission
+on this board:
+
+```bash
+sudo env HOME="$HOME" KISS_USE_GPU=1 KISS_GPU_LOOP=1 \
+  /usr/local/cuda-10/bin/nvprof --print-gpu-summary \
+  ./build-gpu/recon \
+  --scans data/ncd_sample/scans \
+  --out /tmp/gpu_opt.ply \
+  --icp-voxel 1.0 \
+  --max-scans 20
+```
+
+### Remaining bottleneck
+
+The final `associate_kernel` hardware profile gives approximately 51% achieved occupancy,
+94.8% branch efficiency, 0.55 IPC, 99.95% SM efficiency and only **19.9% global-memory
+load efficiency**. The GPU is therefore active, but the nearest-neighbour search still
+generates irregular global-memory accesses.
+
+A future registration optimization should redesign the voxel-map lookup for GPU memory
+access rather than continue tuning block size or arithmetic. Another useful experiment is
+to combine Accelerator II with `--pipeline full` so registration can overlap TSDF
+integration. Moving the remaining 6×6 solve and convergence control to the GPU is not
+expected to help because their measured cost is negligible. TSDF acceleration would require
+a different GPU/FPGA data structure and a reconstruction-quality validation criterion
+instead of the exact mesh-hash criterion used here.
 
 ## Usage of AI
 
