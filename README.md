@@ -921,8 +921,8 @@ Keilin: https://chatgpt.com/share/6abbee3d-ba9c-83e8-bdcb-177f0710a5cb
 
 Gonzalo: https://chatgpt.com/share/6abc539e-4118-83e8-bd86-a0ebd38bcdda
 
-GPU Accelerator I and II used this chat: https://claude.ai/share/09267f5c-c3d9-4bcd-8fd8-bf36aa900a28
-This chat was used by everyone to work on the codes.
+GPU Accelerator I and II used this chats: https://claude.ai/share/09267f5c-c3d9-4bcd-8fd8-bf36aa900a28 and https://chatgpt.com/share/6b03928c-ae64-83e8-a4fa-660b579dbb0b
+This chats were used by everyone to work on the codes.
 
 
 ## References
