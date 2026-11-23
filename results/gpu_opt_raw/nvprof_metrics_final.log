@@ -1,0 +1,25 @@
+==23686== NVPROF is profiling process 23686, command: ./build/recon --scans data/ncd_sample/scans --out /tmp/metrics_final_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/metrics_final_timings.csv
+==23686== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==23686== Profiling application: ./build/recon --scans data/ncd_sample/scans --out /tmp/metrics_final_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/metrics_final_timings.csv
+==23686== Profiling result:
+==23686== Metric result:
+Invocations                               Metric Name                        Metric Description         Min         Max         Avg
+Device "NVIDIA Tegra X1 (0)"
+    Kernel: _GLOBAL__N__42_tmpxft_00005a9f_00000000_6_gpu_icp_cpp1_ii_471d523b::transform_kernel(double*, int, _GLOBAL__N__42_tmpxft_00005a9f_00000000_6_gpu_icp_cpp1_ii_471d523b::PoseArg)
+        531                        achieved_occupancy                        Achieved Occupancy    0.705123    0.847788    0.749218
+        531                            gld_efficiency             Global Memory Load Efficiency      33.33%      33.33%      33.33%
+        531                         branch_efficiency                         Branch Efficiency     100.00%     100.00%     100.00%
+        531                                       ipc                              Executed IPC    0.162902    0.181414    0.173772
+        531                             sm_efficiency                   Multiprocessor Activity      91.42%      93.14%      92.25%
+    Kernel: _GLOBAL__N__48_tmpxft_00005a8a_00000000_6_gpu_associate_cpp1_ii_gpu_init::associate_kernel(double const *, int, int const *, int const *, int const *, int, double const *, double, double, int*)
+        531                        achieved_occupancy                        Achieved Occupancy    0.496148    0.525410    0.513808
+        531                            gld_efficiency             Global Memory Load Efficiency      15.65%      20.56%      19.90%
+        531                         branch_efficiency                         Branch Efficiency      93.83%      95.73%      94.79%
+        531                                       ipc                              Executed IPC    0.517810    1.002662    0.553453
+        531                             sm_efficiency                   Multiprocessor Activity      99.87%      99.96%      99.95%
+    Kernel: _GLOBAL__N__42_tmpxft_00005a9f_00000000_6_gpu_icp_cpp1_ii_471d523b::normal_eq_kernel(double const *, double const *, int const *, int, double, double*)
+        531                        achieved_occupancy                        Achieved Occupancy    0.118122    0.123583    0.122688
+        531                            gld_efficiency             Global Memory Load Efficiency      30.24%      30.33%      30.26%
+        531                         branch_efficiency                         Branch Efficiency      99.93%     100.00%      99.93%
+        531                                       ipc                              Executed IPC    0.144971    0.154434    0.151495
+        531                             sm_efficiency                   Multiprocessor Activity      99.25%      99.39%      99.32%

@@ -56,6 +56,7 @@ HD inline int associate_one(const double* p,
     const int vz = static_cast<int>(std::floor(p[2] / voxel_size));
 
     double best_d = DBL_MAX;
+    double best_d2 = DBL_MAX;
     int best_k = -1;
 
     for (int dx = -1; dx <= 1; ++dx) {
@@ -72,11 +73,25 @@ HD inline int associate_one(const double* p,
                     const double ez = pts[3 * k + 2] - p[2];
                     // Same summation order as squaredNorm() in Eigen 3.4 for 3
                     // elements: x^2 + (y^2 + z^2).
-                    const double d = std::sqrt(ex * ex + (ey * ey + ez * ez));
+                    const double d2 = ex * ex + (ey * ey + ez * ez);
+
+                    #ifdef __CUDA_ARCH__
+                    if (d2 < best_d2) {
+                        const double d = std::sqrt(d2);
+                        if (d < best_d) {
+                            best_d = d;
+                            best_d2 = d2;
+                            best_k = k;
+                        }
+                    }
+                    #else
+                    const double d = std::sqrt(d2);
                     if (d < best_d) {
                         best_d = d;
+                        best_d2 = d2;
                         best_k = k;
                     }
+                    #endif
                 }
             }
         }

@@ -1,0 +1,10 @@
+==20962== NVPROF is profiling process 20962, command: ./build/recon --scans data/ncd_sample/scans --out /tmp/sqrt_prune_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/sqrt_prune_timings.csv
+==20962== Warning: Unified Memory Profiling is not supported on the underlying platform. System requirements for unified memory can be found at: http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-requirements
+==20962== Profiling application: ./build/recon --scans data/ncd_sample/scans --out /tmp/sqrt_prune_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/sqrt_prune_timings.csv
+==20962== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   92.06%  3.06389s       531  5.7700ms  4.3550ms  16.016ms  _GLOBAL__N__48_tmpxft_00005012_00000000_6_gpu_associate_cpp1_ii_gpu_init::associate_kernel(double const *, int, int const *, int const *, int const *, int, double const *, double, double, int*)
+                    7.05%  234.76ms       531  442.11us  374.29us  2.9950ms  _GLOBAL__N__42_tmpxft_00005027_00000000_6_gpu_icp_cpp1_ii_471d523b::normal_eq_kernel(double const *, double const *, int const *, int, double, double*)
+                    0.57%  19.023ms       531  35.824us  29.844us  246.36us  _GLOBAL__N__42_tmpxft_00005027_00000000_6_gpu_icp_cpp1_ii_471d523b::transform_kernel(double*, int, _GLOBAL__N__42_tmpxft_00005027_00000000_6_gpu_icp_cpp1_ii_471d523b::PoseArg)
+                    0.28%  9.4668ms        95  99.650us  4.4790us  748.36us  [CUDA memcpy HtoD]
+                    0.03%  862.81us       531  1.6240us  1.0930us  10.001us  [CUDA memcpy DtoH]
