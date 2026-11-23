@@ -483,7 +483,7 @@ Files involved:
 |---|---|
 | `gpu/voxel_search.h`, `gpu/sort_voxels.h`, `gpu/associate_one.h` | The search itself. Tagged `HD` (host + device): the same code compiles for the CPU and the GPU, so the CPU tests validate what runs on the GPU |
 | `gpu/gpu_associate.h`, `gpu/gpu_associate.cu` | CUDA module with a plain C interface: `gpu_init`, `gpu_set_map`, `gpu_run`, `gpu_free`, `gpu_get_timing` |
-| `third_party/kiss_icp/` | KISS-ICP `v1.0.0` with our changes. Only 4 files differ from upstream: see `docs/kiss-icp-changes.diff` |
+| `third_party/kiss_icp/` | KISS-ICP `v1.0.0` with our changes.|
 | `third_party/kiss_icp/core/GpuAssociation.hpp` | Bridge: flattens the map and the scan, calls the module and builds the correspondences |
 | `cmake/ReconGpu.cmake` | `RECON_GPU` option: builds `gpu/` with `nvcc` and links it |
  
@@ -632,19 +632,278 @@ Sources: `results/jetson-gpu/` (`full_cpu_*.csv`, `full_gpu_*.csv` and the match
 | `nvcc` flags | `-std=c++14 --fmad=false -O2` | `cmake/ReconGpu.cmake` |
 | Return codes | `-1` map does not fit, `-2` too many scan points, `-3` CUDA failure, `-4` no map loaded | `gpu/gpu_associate.h` |
 
-## Next steps
- 
-The nearest-neighbour search of the registration now runs on the GPU. With it, TSDF
-integration is the largest remaining stage (42 % of the scan time on the Jetson Nano).
-The next steps, all still to be measured, are:
- 
-- **Optimize the accelerator.** `gpu_run` is 94 % of the GPU cost.
-- **Measure `--pipeline full` together with the GPU**, since registration and integration
-  can overlap.
-- **Move more work to an accelerator**: the TSDF integration (it runs on one core), or an
-  HLS pipeline for the nearest-neighbour search on the Kria KV260.
+## GPU accelerator II (ICP loop on the GPU)
+
+Accelerator I moved the nearest-neighbour search to the GPU, but every ICP iteration still
+copied the scan points to the device, copied the indices back, built the list of
+correspondences, assembled the linear system and moved the points on the CPU. Accelerator II
+keeps the scan points in device memory for the whole ICP loop: association, the normal
+equations and the point transform run on the GPU, and only the 28 sums of the linear system
+come back. The 6x6 solve, `SE3::exp` and the convergence test stay on the CPU. It is enabled
+with `KISS_GPU_LOOP=1` on top of `KISS_USE_GPU=1`; without it, Accelerator I runs as before.
+
+### How it works
+
+Per scan, the scan points are uploaded once (`gpu_set_source`). Per ICP iteration:
+
+1. `gpu_run_device` runs the association kernel on the points already in device memory. It
+   is asynchronous and writes the neighbour indices into a device buffer.
+2. `gpu_normal_eq` runs one thread per correspondence. Each thread computes its part of
+   J^T w J (upper triangle, 21 values), J^T w r (6 values) and a counter (1 value) with
+   `normal_eq_one`, the Geman-McClure weight of KISS-ICP. A block of 128 threads reduces its
+   28 values with a fixed tree in shared memory, and the host adds the per-block partial sums
+   in block order.
+3. The CPU solves the 6x6 system with `ldlt`, as before, and checks convergence.
+4. `gpu_transform` applies the increment to the points in place (the increment, not the
+   accumulated `T_icp`).
+
+Design decisions:
+
+- **Deterministic reduction.** `double` `atomicAdd` does not exist on `sm_53`, and even where
+  it exists its order depends on scheduling. The reduction tree and the final sum have a
+  fixed order, so the same input always gives the same bits.
+- **Same arithmetic as the CPU where it matters.** `transform_one` reproduces
+  `Sophus::SE3d * p` step by step (quaternion rotation, no rotation matrix). It was checked
+  against Sophus 1.22.10 with 2 million points and no coordinate differed (a local test, not
+  part of the repository). The initial guess is still applied on the CPU, so the GPU starts
+  from the same bits as the CPU loop.
+- **The sums are not bit-identical to KISS-ICP.** The CPU adds them with TBB in an order that
+  changes from run to run. On synthetic scans the final poses differ by about 1e-15. On the
+  real sample the iteration count, the correspondences and the mesh are identical.
+- **Fallback.** If any GPU call fails, the error is printed and counted in `gpu_fallbacks`,
+  the points are rebuilt on the CPU from the original frame and the accumulated pose, and the
+  CPU loop continues from the same iteration.
+
+Files involved:
+
+| Path | What it is |
+|---|---|
+| `gpu/normal_eq_one.h`, `gpu/transform_one.h` | Per-point arithmetic, tagged `HD` (host + device) so CPU tests and the kernel share the same code |
+| `gpu/gpu_icp.h`, `gpu/gpu_icp.cu` | CUDA module with a plain C interface: `gpu_icp_init`, `gpu_icp_free`, `gpu_normal_eq`, `gpu_transform` |
+| `gpu/gpu_associate.h`, `gpu/gpu_associate.cu` | Additive: `gpu_set_source`, `gpu_run_device`, `gpu_dev_src`, `gpu_dev_pts`, `gpu_dev_idx`. `gpu_run` is unchanged |
+| `third_party/kiss_icp/core/GpuAssociation.hpp` | `SetSource`, `LoopIteration`, `Transform` and the verification mode |
+| `third_party/kiss_icp/core/Registration.cpp` | The GPU loop inside `AlignPointsToMap`; the CPU loop is unchanged |
+| `cmake/ReconGpu.cmake` | Also builds `gpu_icp.cu` into `libgpu_assoc.a` |
+
+### Build and run
+
+The build is the same as for Accelerator I (`-DRECON_GPU=ON`). The loop adds two environment
+variables:
+
+```bash
+# Accelerator I: association on the GPU
+KISS_USE_GPU=1 ./build-gpu/recon --scans data/ncd_sample/scans --icp-voxel 1.0 --out gpu.ply
+# Accelerator II: the whole ICP loop on the GPU
+KISS_USE_GPU=1 KISS_GPU_LOOP=1 ./build-gpu/recon --scans data/ncd_sample/scans --icp-voxel 1.0 --out loop.ply
+# Validation: every iteration is also computed on the CPU and compared
+KISS_USE_GPU=1 KISS_GPU_LOOP=1 KISS_GPU_CHECK=1 ./build-gpu/recon --scans data/ncd_sample/scans --icp-voxel 1.0 --out check.ply
+```
+
+`KISS_GPU_CHECK=1` roughly doubles the cost of the registration, so it is only for
+validation. It records three counters: `gpu_check_relerr_e15` (largest relative difference of
+the linear system, in units of 1e-15; near convergence J^T r is close to zero, so its maximum
+can be large without meaning a real difference), `gpu_check_count_mismatch` (its sum is the
+number of iterations in which the GPU and the CPU found a different number of
+correspondences, and must be 0) and `gpu_check_count_absdiff`.
+
+Expected counters for the 300-scan sample: `icp_iterations` 9,263, `correspondences`
+11,864,440, `gpu_loop_iterations` 9,263, no `gpu_fallbacks`, and the same `.ply` for every
+variant (`md5sum`).
+
+### Results
+
+Measured on the Jetson Nano 2 GB (same conditions as Accelerator I), 300 scans,
+`--icp-voxel 1.0`, `--pipeline off`. Six runs in alternating order (CPU, Accelerator I,
+Accelerator II, twice). The values are the mean of the two runs of each mode.
+
+**Same result as the CPU**
+
+| Check | CPU | Accelerator I | Accelerator II |
+|---|---|---|---|
+| ICP iterations | 9,263 | 9,263 | 9,263 |
+| Correspondences | 11,864,440 | 11,864,440 | 11,864,440 |
+| Final mesh hash (first 12 hex digits) | `1ebf710cb8e2` | `1ebf710cb8e2` | `1ebf710cb8e2` |
+| `gpu_fallbacks` | none | none | none |
 
 
+**Time**
+
+| | CPU | Accelerator I | Accelerator II |
+|---|---:|---:|---:|
+| register (ms per scan) | 372.7 | 251.7 | 236.9 |
+| register speedup vs CPU | 1.00× | 1.48× | **1.57×** |
+| Total time, 300 scans (s) | 174.7 | 135.3 | 131.2 |
+| Total speedup vs CPU | 1.00× | 1.29× | **1.33×** |
+| Scans per second | 1.72 | 2.22 | 2.29 |
+
+Accelerator II is 1.06× faster than Accelerator I in the registration and 1.03× faster in
+total (about 14 ms per scan). The two CPU runs differ by 5.9 % (179.8 s and 169.6 s); the two
+runs of each GPU mode agree within 0.3 %.
+
+**Where the time goes in Accelerator II (ICP loop mode, one run)**
+
+| Region | Per call | Share of `register` |
+|---|---:|---:|
+| `gpu_normal_eq` (association kernel + normal equations + download of the partial sums) | 6.16 ms | 80.1 % |
+| `gpu_transform` | 0.27 ms | 3.5 % |
+| `gpu_run_device` (launch only) | 0.21 ms | 2.7 % |
+| `gpu_set_map` + `gpu_flatten_map` (once per scan) | 5.7 + 3.4 ms | 3.8 % |
+| `solve_6x6` (CPU) | 0.016 ms | 0.2 % |
+
+`gpu_normal_eq` includes the association kernel, because the launch is asynchronous and the
+blocking copy of the partial sums waits for it. In an isolated benchmark the normal equations
+alone take about 0.38 ms for 1,300 points on this board, so the association kernel accounts
+for most of those 6.16 ms: about 5.8 ms per iteration, roughly 180 ms of the 237 ms of
+`register` per scan. This split is an estimate by difference, not a direct measurement.
+
+Sources: `results/jetson-gpu-loop/` (`cpu_*`, `gpu_*` and `loop_*` `.csv`, `.out` and `.err`
+files, and `mesh_md5.txt`).
+
+
+### Observations and limits
+
+- **The gain over Accelerator I is small.** Moving the loop to the GPU removes the copies of
+  the points and the indices and the list of correspondences, but the time is dominated by
+  the association kernel itself.
+- **The ceiling is still the TSDF integration** (about 190 ms per scan, unchanged).
+- **The loop is not bit-identical to KISS-ICP** (see above). The comparison is made with the
+  counters, the mesh hash and, with `KISS_GPU_CHECK=1`, the number of correspondences per
+  iteration.
+- Two runs per mode on a shared board and one dataset. `--pipeline off` in all runs.
+
+### Why the TSDF integration is not offloaded
+
+The TSDF integration (about 190 ms per scan, roughly a third of the cycle) is the
+next-largest cost after the registration, but we decided not to move it to the GPU:
+
+- **It would change the final result.** VDBFusion stores the TSDF and the weights in
+  `openvdb::FloatGrid` (single precision). For every voxel crossed by a ray it applies
+  `new_tsdf = (last_tsdf * last_weight + tsdf * weight) / new_weight` as a
+  read-modify-write on the shared voxel. This weighted average is not associative in
+  floating point, so the stored value depends on the order in which points and rays
+  touch each voxel. `Integrate` processes the points of a scan sequentially
+  (`std::for_each`), and that order defines the reference result. Any parallel version
+  (several rays updating the same voxel, or atomics) would accumulate in a different
+  order and produce slightly different voxel values.
+- **The criterion we use would no longer hold.** Accelerators I and II are validated by
+  producing the same counters and the same mesh hash as the CPU baseline. A parallel
+  TSDF would change the voxel values and therefore the extracted mesh, so that check
+  would fail, and we would need a new, weaker criterion (a tolerance on the mesh)
+  instead of exact equality.
+- **It is not a kernel port, it is a re-implementation.** The volume is a sparse
+  OpenVDB tree accessed through unsafe (non-thread-safe) accessors, and the mesh comes
+  from a separate marching-cubes pass over that grid. Running it on the GPU would mean
+  replacing the sparse grid with a GPU structure (hash or block-sparse grid) and
+  rewriting the DDA ray traversal and the mesh extraction. This is a different
+  algorithm and data structure, not a change that preserves VDBFusion's behavior.
+- **Even the CPU side is not trivially parallel.** The source suggests
+  `std::execution::par` for the point loop, but the unsafe accessors would make that a
+  data race on shared voxels.
+
+For these reasons the TSDF stays on the CPU, and it sets the ceiling of the cycle:
+once the registration is faster than the integration, the pipeline period is bounded
+by the ~190 ms integration step.
+
+## Accelerator II optimization: association kernel
+
+This stage closes the association-kernel optimization identified after Accelerator II.
+Accelerator II already keeps the map and source points on the GPU during ICP, so the
+optimization focuses on the dominant remaining CUDA kernel rather than adding more
+CPU↔GPU transfers.
+
+### Profiling-driven decision
+
+Direct `nvprof` measurements on the same first 20 scans produced 531 calls to each ICP
+kernel. In the Accelerator II baseline, `associate_kernel` accounted for about **94.6% of
+GPU activity** and averaged **8.53 ms/call** over two runs.
+
+Several candidates were tested independently:
+
+| Candidate | Result | Decision |
+|---|---|---|
+| 64 / 128 / 256 threads per block | differences below 1%, smaller than run-to-run variation | keep 128 |
+| fewer binary voxel searches | about 1.3% apparent gain, within variation | discard |
+| explicit read-only cache loads | SASS already uses `LDG` for the read-only buffers | no change |
+| FP32 distance calculation | changed ICP convergence and final mesh | discard |
+| reciprocal `voxel_size` | less than 1% apparent gain | discard |
+| initial `max_dist²` pruning | no measurable improvement | discard |
+| skip unnecessary FP64 square roots | clear and repeatable improvement, identical result | **keep** |
+
+The accepted version computes the squared distance first and evaluates `sqrt()` only when
+the candidate can improve the current minimum. The final strict distance comparison is kept,
+and the CPU reference path is unchanged.
+
+### Results
+
+| Metric | Accelerator II baseline | Optimized |
+|---|---:|---:|
+| `associate_kernel` | 8.53 ms/call | **5.72 ms/call** |
+| `register` | 238.30 ms/scan | **172.77 ms/scan** |
+| Total | 440.68 ms/scan | **373.06 ms/scan** |
+| Throughput | 2.27 scans/s | **2.68 scans/s** |
+| Peak RSS | 290 MiB | 291 MiB |
+
+The kernel is **1.49× faster** (32.9% less time), registration is 27.5% faster and
+end-to-end scan time decreases by 15.3%. Throughput increases by 18.1%.
+
+The 300-scan baseline and optimized runs both produce:
+
+- 9,263 ICP iterations;
+- 11,864,440 correspondences;
+- final mesh MD5 `1ebf710cb8e25d2ae86fc91531352bda`.
+
+Raw profiling evidence is stored in `results/gpu_opt_raw/`. The code change is isolated in
+`gpu/associate_one.h`.
+
+### Reproduce the final application profile
+
+Use the normal GPU build described above, then run Accelerator II with the profiler enabled:
+
+```bash
+mkdir -p results/gpu-opt-final
+
+KISS_USE_GPU=1 \
+KISS_GPU_LOOP=1 \
+KISS_PROFILE_OUT=results/gpu-opt-final/optimized/kiss_profile.csv \
+tools/run_profile.sh \
+  --label optimized \
+  --out-dir results/gpu-opt-final \
+  --bin build-gpu/recon \
+  --scans data/ncd_sample/scans \
+  --mesh-repeats 101 \
+  --icp-voxel 1.0
+```
+
+`--mesh-repeats 101` keeps more than 100 samples for mesh extraction; the 300-scan input
+already provides 300 samples for every per-scan stage.
+
+For direct CUDA profiling on the Jetson Nano, `nvprof` needs elevated profiling permission
+on this board:
+
+```bash
+sudo env HOME="$HOME" KISS_USE_GPU=1 KISS_GPU_LOOP=1 \
+  /usr/local/cuda-10/bin/nvprof --print-gpu-summary \
+  ./build-gpu/recon \
+  --scans data/ncd_sample/scans \
+  --out /tmp/gpu_opt.ply \
+  --icp-voxel 1.0 \
+  --max-scans 20
+```
+
+### Remaining bottleneck
+
+The final `associate_kernel` hardware profile gives approximately 51% achieved occupancy,
+94.8% branch efficiency, 0.55 IPC, 99.95% SM efficiency and only **19.9% global-memory
+load efficiency**. The GPU is therefore active, but the nearest-neighbour search still
+generates irregular global-memory accesses.
+
+A future registration optimization should redesign the voxel-map lookup for GPU memory
+access rather than continue tuning block size or arithmetic. Another useful experiment is
+to combine Accelerator II with `--pipeline full` so registration can overlap TSDF
+integration. Moving the remaining 6×6 solve and convergence control to the GPU is not
+expected to help because their measured cost is negligible. TSDF acceleration would require
+a different GPU/FPGA data structure and a reconstruction-quality validation criterion
+instead of the exact mesh-hash criterion used here.
 
 ## Usage of AI
 
@@ -662,8 +921,8 @@ Keilin: https://chatgpt.com/share/6abbee3d-ba9c-83e8-bdcb-177f0710a5cb
 
 Gonzalo: https://chatgpt.com/share/6abc539e-4118-83e8-bd86-a0ebd38bcdda
 
-GPU Accelerator: https://claude.ai/share/be045057-e15d-462e-9e98-40855a3e21fa
-This chat was used by everyone to work on the codes.
+GPU Accelerator I and II used this chats: https://claude.ai/share/09267f5c-c3d9-4bcd-8fd8-bf36aa900a28 and https://chatgpt.com/share/6b03928c-ae64-83e8-a4fa-660b579dbb0b
+This chats were used by everyone to work on the codes.
 
 
 ## References

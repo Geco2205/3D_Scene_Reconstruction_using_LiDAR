@@ -1,0 +1,10 @@
+==19419== NVPROF is profiling process 19419, command: ./build/recon --scans data/ncd_sample/scans --out /tmp/nvprof_64_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/nvprof_64_timings.csv
+==19419== Warning: Unified Memory Profiling is not supported on the underlying platform. System requirements for unified memory can be found at: http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-requirements
+==19419== Profiling application: ./build/recon --scans data/ncd_sample/scans --out /tmp/nvprof_64_mesh.ply --icp-voxel 1.0 --max-scans 20 --timing-csv /tmp/nvprof_64_timings.csv
+==19419== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   94.66%  4.53861s       531  8.5473ms  5.2845ms  21.308ms  _GLOBAL__N__48_tmpxft_00004b8b_00000000_6_gpu_associate_cpp1_ii_gpu_init::associate_kernel(double const *, int, int const *, int const *, int const *, int, double const *, double, double, int*)
+                    4.73%  226.58ms       531  426.71us  374.34us  2.9878ms  _GLOBAL__N__42_tmpxft_00004ba0_00000000_6_gpu_icp_cpp1_ii_471d523b::normal_eq_kernel(double const *, double const *, int const *, int, double, double*)
+                    0.38%  18.276ms       531  34.418us  29.844us  248.55us  _GLOBAL__N__42_tmpxft_00004ba0_00000000_6_gpu_icp_cpp1_ii_471d523b::transform_kernel(double*, int, _GLOBAL__N__42_tmpxft_00004ba0_00000000_6_gpu_icp_cpp1_ii_471d523b::PoseArg)
+                    0.22%  10.322ms        95  108.65us  4.2190us  1.3466ms  [CUDA memcpy HtoD]
+                    0.02%  828.81us       531  1.5600us  1.0930us  11.824us  [CUDA memcpy DtoH]

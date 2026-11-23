@@ -203,7 +203,87 @@ Sophus::SE3d Registration::AlignPointsToMap(const std::vector<Eigen::Vector3d> &
 
     // ICP-loop
     Sophus::SE3d T_icp = Sophus::SE3d();
-    for (int j = 0; j < max_num_iterations_; ++j) {
+
+#ifdef KISS_ICP_USE_GPU
+    // [NEW] Full ICP loop on the GPU (Acelerador II).
+    //
+    // Runs when the GPU is in use for this scan (KISS_USE_GPU=1 and SetMap succeeded),
+    // KISS_GPU_LOOP=1 is set, and the source points could be uploaded. The points stay in
+    // device memory for the whole loop: association and the normal equations run on the
+    // GPU (LoopIteration), only the 28 sums come back, the 6x6 is solved here exactly as in
+    // the CPU loop, and the increment is applied on the GPU (Transform).
+    //
+    // The upload uses `source`, which already holds initial_guess applied on the CPU
+    // (Equation 9), so the GPU starts from the same bits as the CPU loop.
+    //
+    // If a GPU call fails mid-way, the source is rebuilt from the original frame with
+    // T_icp * initial_guess and the original CPU loop below resumes at the iteration where
+    // the GPU stopped, with T_icp kept. The rebuilt points equal the CPU ones mathematically,
+    // though not bit for bit, because the poses are composed before being applied.
+    int first_cpu_iteration = 0;  // the CPU loop starts here; 0 unless the GPU loop failed
+    if (use_gpu && gpu::LoopEnabled() && gpu::SetSource(source)) {
+        const int n = static_cast<int>(source.size());
+        bool gpu_failed = false;
+        for (int j = 0; j < max_num_iterations_; ++j) {
+            // Equations (10) and (11) on the GPU
+            Eigen::Matrix6d JTJ;
+            Eigen::Vector6d JTr;
+            int n_corr = 0;
+            if (!gpu::LoopIteration(n, max_distance, kernel_scale, JTJ, JTr, n_corr)) {
+                // Nothing of this iteration was used yet: redo it on the CPU.
+                first_cpu_iteration = j;
+                gpu_failed = true;
+                break;
+            }
+            // KISS_GPU_CHECK=1: the CPU builds the same system from its own copy of the
+            // points (moved in step with the GPU) and the difference goes to the counters.
+            if (gpu::CheckEnabled()) {
+                gpu::CheckIteration(
+                    JTJ, JTr, n_corr, [&](const std::vector<Eigen::Vector3d> &cpu_source) {
+                        const auto cpu_corr = DataAssociation(cpu_source, voxel_map, max_distance);
+                        const auto [A, b] = BuildLinearSystem(cpu_corr, kernel_scale);
+                        return std::make_tuple(A, b, static_cast<int>(cpu_corr.size()));
+                    });
+            }
+            // Solve on the CPU, same as the original loop
+            Eigen::Vector6d dx;
+            Sophus::SE3d estimation;
+            {
+                KISS_TIMER("solve_6x6");
+                dx = JTJ.ldlt().solve(-JTr);
+                estimation = Sophus::SE3d::exp(dx);
+            }
+            // Equation (12) on the GPU: the increment, not the accumulated T_icp
+            const bool moved = gpu::Transform(n, estimation);
+            kiss_icp::prof::Count("icp_iterations", 1.0);
+            kiss_icp::prof::Count("correspondences", static_cast<double>(n_corr));
+            // This iteration's estimate is complete even if Transform failed: keep it.
+            T_icp = estimation * T_icp;
+            if (dx.norm() < convergence_criterion_) return T_icp * initial_guess;
+            if (!moved) {
+                // The device points are in an unknown state: continue on the CPU with the
+                // next iteration.
+                first_cpu_iteration = j + 1;
+                gpu_failed = true;
+                break;
+            }
+        }
+        // All iterations ran on the GPU without converging: same exit as the CPU loop.
+        if (!gpu_failed) return T_icp * initial_guess;
+
+        // Fallback: the rest of this scan runs on the CPU, without Associate either, as after
+        // any other GPU failure.
+        use_gpu = false;
+        source = frame;
+        TransformPoints(T_icp * initial_guess, source);
+    }
+#else
+    const int first_cpu_iteration = 0;  // CPU-only build: the loop always starts at 0
+#endif
+
+    // Original CPU loop. Its only change is the starting index, which is 0 unless the GPU
+    // loop above failed mid-way.
+    for (int j = first_cpu_iteration; j < max_num_iterations_; ++j) {
         // Equation (10)
         const auto correspondences = [&] {
             KISS_TIMER("data_association");
